@@ -6,14 +6,12 @@ import (
 	"os"
 	"strings"
 
-	"github.com/gin-gonic/gin"
 	"gopkg.in/yaml.v3"
 
-	"gin_web_server/api"
 	"gin_web_server/config"
 	"gin_web_server/database"
-	"gin_web_server/middleware"
 	"gin_web_server/models"
+	"gin_web_server/routes"
 )
 
 var cfg *config.Config
@@ -31,10 +29,9 @@ func init() {
 		log.Fatalf("Failed to initialize MySQL: %v", err)
 	}
 
-	// 初始化Redis连接（可选）
+	// 初始化Redis连接
 	if err := database.InitRedis(cfg.Redis); err != nil {
-		log.Printf("Warning: Redis initialization failed: %v", err)
-		log.Println("Continuing without Redis cache...")
+		log.Fatalf("Failed to initialize Redis: %v", err)
 	}
 
 	// 自动迁移数据库表
@@ -44,31 +41,8 @@ func init() {
 }
 
 func main() {
-	// 初始化Gin
-	r := gin.New()
-	r.Use(gin.Recovery())
-	r.Use(middleware.Logger())
-
-	// 健康检查
-	r.GET("/ping", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"message": "pong",
-			"status":  "ok",
-		})
-	})
-
-	// API 路由组 v1
-	v1 := r.Group("/api/v1")
-	{
-		users := v1.Group("/users")
-		{
-			users.GET("", api.GetUsers)          // GET /api/v1/users
-			users.GET("/:id", api.GetUser)       // GET /api/v1/users/:id
-			users.POST("", api.CreateUser)       // POST /api/v1/users
-			users.PUT("/:id", api.UpdateUser)    // PUT /api/v1/users/:id
-			users.DELETE("/:id", api.DeleteUser) // DELETE /api/v1/users/:id
-		}
-	}
+	// 设置路由
+	r := routes.SetupRouter()
 
 	port := os.Getenv("PORT")
 	if port == "" {
